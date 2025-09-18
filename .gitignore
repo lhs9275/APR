@@ -56,3 +56,5 @@ datasets/
 *.pth
 
 Agent/qwen1.5-7b-chat/
+# ignore local model
+qwen1.5-7b-chat/
