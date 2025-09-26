@@ -29,8 +29,8 @@ logging.basicConfig(
 )
 
 # ===== 경로 설정 =====
-DEFAULT_IN_PATH = Path("./Results/4.BaseLine.json")
-DEFAULT_OUT_PATH = Path("Results/patch/5.BaseLineDeepSeek.json")
+DEFAULT_IN_PATH = Path("./Results/4.GeneratePromResult.json")
+DEFAULT_OUT_PATH = Path("Results/patch/5.PatchesResults10.json")
 
 # ===== 정규식 =====
 CODE_FENCE_RE = re.compile(r"```(?:python)?\s*([\s\S]*?)```", re.IGNORECASE)
@@ -48,10 +48,10 @@ BANNED_TOKENS = [re.compile(p) for p in BANNED_PATTERNS]
 
 def get_parser():
     parser = ArgumentParser(description="LLM을 사용하여 코드 패치를 순차적으로 생성합니다. (개선된 버전 + Token/CPU/RAM/GPU 로깅)")
-    parser.add_argument("--model_name", type=str, default="deepseek-ai/deepseek-coder-6.7b-instruct", help="사용할 모델의 경로 또는 이름")
+    parser.add_argument("--model_name", type=str, default="./qwen1.5-7b-chat", help="사용할 모델의 경로 또는 이름")
     parser.add_argument("--in_file", type=Path, default=DEFAULT_IN_PATH, help="프롬프트가 포함된 입력 JSON 파일")
     parser.add_argument("--out_file", type=Path, default=DEFAULT_OUT_PATH, help="생성된 패치를 저장할 출력 JSON 파일")
-    parser.add_argument("--batch_size", type=int, default=4, help="추론에 사용할 배치 사이즈")
+    parser.add_argument("--batch_size", type=int, default=12, help="추론에 사용할 배치 사이즈")
     parser.add_argument("--num_patches_to_generate", type=int, default=20, help="목표로 하는 고유한 후보 패치의 수")
     parser.add_argument("--target_candidates", type=int, default=10, help="생성된 후보 중 최종 저장할 상위 패치의 수")
     parser.add_argument("--max_generation_multiplier", type=int, default=4,

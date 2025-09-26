@@ -24,7 +24,7 @@ logging.basicConfig(
 )
 
 # ===== 경로 설정 =====
-DEFAULT_IN_PATH = Path("./Results/4.promtest.json")
+DEFAULT_IN_PATH = Path("./Results/4.GeneratePromResult.json")
 DEFAULT_OUT_PATH = Path("Results/patch/5.PatchesResults10.json")
 
 # ===== 정규식 =====

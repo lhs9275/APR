@@ -185,7 +185,7 @@ def create_context_string(bug_data: Dict[str, Any], max_similar: int, max_code_l
     return "\n\n---\n\n".join(pieces)
 
 
-# --- 프롬프트 생성 ---
+# --- 프롬프트 생성(강화 버전) ---
 
 def create_prompt(
     bug_id: str,
@@ -206,32 +206,56 @@ def create_prompt(
     if full_buggy_code and buggy_line_content:
         full_buggy_code = _mark_buggy_line(full_buggy_code, buggy_line_content)
 
+    # 단호하고 간결한 지시 + 체크리스트 + 탐색 우선순위
     return (
-        "You are an expert Python programming assistant. Your task is to analyze the provided buggy Python function and generate a corrected version.\n\n"
-        "CRITICAL INSTRUCTIONS:\n"
-        "1.  First, in an <analysis> XML tag, briefly explain the root cause of the bug and your planned fix.\n"
-        "2.  After the analysis tag, provide ONLY the complete, corrected function or class. It must be a drop-in replacement.\n"
-        "3.  Do not include import statements or any introductory text before the code itself.\n"
-        "4.  Do not change the original function name or its signature.\n"
-        "5.  Pay extreme attention to indentation. The final code must be syntactically correct.\n"
-        "6.  The fix should only target the bug with minimal changes. Preserve all existing correct logic.\n"
-        "7.  The code must be fully implemented without placeholders like pass or ....\n"
-        "8.  The entire output, including any variable names or strings, must be in English and compatible with Python 3.6.\n\n"
+        "You are a senior Python bug-fix specialist. Read the task and produce a minimal, correct patch.\n\n"
+        "OUTPUT PROTOCOL (strict):\n"
+        "1) First, output an <analysis> XML block (short: <= 12 lines).\n"
+        "   - State the SINGLE root cause.\n"
+        "   - Point to the exact line(s) causing the failure.\n"
+        "   - Describe the ONE minimal change you will apply and why it is safe.\n"
+        "   - Run this mental CHECKLIST before finalizing:\n"
+        "     [ ] Off-by-one / range / indexing\n"
+        "     [ ] None / empty ([], {}, \"\") handling\n"
+        "     [ ] Mutable default args / aliasing (copy vs reference)\n"
+        "     [ ] Type coercion (str/int/float), truthiness pitfalls\n"
+        "     [ ] Sorting / order assumptions (stable sort, key)\n"
+        "     [ ] Integer division vs float division\n"
+        "     [ ] Early return vs fall-through logic\n"
+        "     [ ] Exception type/messages preserved or narrowed safely\n"
+        "     [ ] Boundary conditions on loops/slices\n"
+        "     [ ] Do not change I/O behavior or global state\n"
+        "2) After </analysis>, output ONLY the complete corrected function or class in a Python code block.\n\n"
+        "STRICT CONSTRAINTS:\n"
+        "- Do not add imports. Do not print. Do not log. No placeholders like 'pass'.\n"
+        "- Keep the original name and signature EXACTLY.\n"
+        "- Apply the smallest possible edit (prefer changing <= 3 lines unless absolutely necessary).\n"
+        "- Preserve behavior that is unrelated to the bug.\n"
+        "- Python 3.6 compatible. All identifiers and strings must be in English.\n"
+        "- If the bug is in conditionals/boundaries, fix the condition not the data.\n"
+        "- If the bug involves mutation vs copy, use an explicit shallow copy only when required.\n"
+        "- If external APIs are used, do NOT alter their contract or error types.\n\n"
+        "FOCUS ORDER WHEN READING CONTEXT:\n"
+        "1) Static Analysis Hints (suspicious nodes) — inspect these lines first.\n"
+        "2) The line marked with '# <--- BUGGY LINE'.\n"
+        "3) Surrounding lines for dataflow and invariants.\n"
+        "4) Similar Fix Examples — only to recognize patterns, not to rewrite wholesale.\n\n"
         "### Bug INFO\n\n"
         f"**Project:** `{project_name}`\n"
         f"**File:** `{file_path}`\n"
         f"**Function to Fix:** `{function_name}`\n"
         f"**Identified Buggy Line:** `{buggy_line_content}`\n\n"
-        "**Bug Description:**\n"
-        f"{trim_text_by_lines(description, 80)}\n\n"
-        "**Full Buggy Code** (The problematic line is marked with `# <--- BUGGY LINE`):\n"
+        "**Bug Description (brief):**\n"
+        f"{trim_text_by_lines(description, 60)}\n\n"
+        "**Full Buggy Code** (the problematic line is marked with `# <--- BUGGY LINE`):\n"
         "```python\n"
         f"{trim_text_by_lines(full_buggy_code, max_full_code_lines)}\n"
         "```\n\n"
         "### Reference Context\n"
-        "Use the following context to understand the bug and formulate the fix. Pay special attention to the **Static Analysis Hints** as they often point to the direct cause, and use the **Similar Fix Examples** to find common patching patterns.\n\n"
+        "Use the context below only to confirm the hypothesis and to borrow minimal patch patterns.\n"
+        "Avoid large refactors; prefer a one-line or small-guard fix when valid.\n\n"
         f"{context_string}\n\n"
-        "Now, generate your response following the critical instructions above.\n"
+        "Now produce exactly TWO blocks as specified in the OUTPUT PROTOCOL.\n"
         "##correct\n"
     )
 

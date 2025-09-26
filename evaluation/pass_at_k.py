@@ -15,7 +15,7 @@ def get_parser():
     parser = ArgumentParser()
     parser.add_argument('--dataset', default="bugsinpy", type=str)
     parser.add_argument('--model_inference_dirs', default="patch", type=str)
-    parser.add_argument('--k_list', type=str, default="1,5,10",
+    parser.add_argument('--k_list', type=str, default="1,2,3,4,5,6,7,8,9,10",
                         help="Comma-separated list of k values, e.g., '1,3,5,10'")
     return parser
 
@@ -32,7 +32,7 @@ def main():
         if not os.path.exists(_evaluate_path):
             raise ValueError(f'error: _evaluate_path {_evaluate_path} not exist!!')
 
-        file_pattern = f"{_evaluate_path}/unittest_result_5.BaseLinegemma.json"
+        file_pattern = f"{_evaluate_path}/unittest_result_5.PatchesResults10.json"
         eval_files = glob.glob(file_pattern)
 
         if not eval_files:
