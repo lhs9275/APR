@@ -32,7 +32,7 @@ def main():
         if not os.path.exists(_evaluate_path):
             raise ValueError(f'error: _evaluate_path {_evaluate_path} not exist!!')
 
-        file_pattern = f"{_evaluate_path}/unittest_result_5.PatchesResults10.json"
+        file_pattern = f"{_evaluate_path}/unittest_result_5.GeneratePromResult__wo_ast.json"
         eval_files = glob.glob(file_pattern)
 
         if not eval_files:
@@ -59,7 +59,7 @@ def main():
 
         print(f'Result: {result_}\n')
 
-        pass_k_result_path = f"{_evaluate_path}/pass_k_result_5.PatchesResults10_.txt"
+        pass_k_result_path = f"{_evaluate_path}/unittest_result_5.GeneratePromResult__wo_ast.txt"
         with open(pass_k_result_path, 'a') as pass_k_result:
             pass_k_result.write(f'pass_at_k_final: {result_}\n')
 

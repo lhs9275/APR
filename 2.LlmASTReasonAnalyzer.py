@@ -11,9 +11,19 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from tqdm import tqdm
+from collections import Counter
 
-# ‼️ 수정: Python 3.8 호환성을 위해 astunparse 라이브러리 import
-import astunparse
+# --- AST 파싱 메트릭 전역 상태 ---
+AST_METRICS = {
+    "attempts": 0,
+    "success": 0,
+    "fail": 0,
+    "exceptions": Counter(),
+    "samples": []  # {'bug_id': str|None, 'exc': str, 'lineno': int|None, 'offset': int|None}
+}
+
+
+
 
 
 # -------------------- AST 유틸리티 --------------------
@@ -75,9 +85,19 @@ def extract_suspicious_nodes_with_ast(function_code: str) -> List[Dict[str, Any]
         def visit_ExceptHandler(self, node): self.add(node, "ExceptHandler"); self.generic_visit(node)
 
     try:
+        AST_METRICS["attempts"] += 1
         tree = ast.parse(function_code)
+        AST_METRICS["success"] += 1
     except Exception as e:
-        return [{"error": str(e)}]
+        AST_METRICS["fail"] += 1
+        AST_METRICS["exceptions"][type(e).__name__] += 1
+        AST_METRICS["samples"].append({
+            "bug_id": None,
+            "exc": f"{type(e).__name__}: {e}",
+            "lineno": getattr(e, "lineno", None),
+            "offset": getattr(e, "offset", None),
+        })
+        return [{"error": f"{type(e).__name__}: {e}"}]
     visitor = NodeVisitor()
     visitor.visit(tree)
     return visitor.nodes
@@ -207,6 +227,8 @@ def analyze_one_bug(
 
     nodes = extract_suspicious_nodes_with_ast(function_before)
     if nodes and "error" in nodes[0]:
+        if AST_METRICS["samples"] and AST_METRICS["samples"][-1]["bug_id"] is None:
+            AST_METRICS["samples"][-1]["bug_id"] = str(bug_id)
         return {"error": f"AST parsing failed: {nodes[0]['error']}", **item}
 
     nodes_ranked = rank_nodes(nodes, buggy_line_location)
@@ -272,7 +294,7 @@ def load_model(model_name: str):
 def main():
     # --- ‼️ 모델 경로 고정 (대소문자 구분 주의) ---
     # 로컬에 다운로드한 'Qwen/Qwen1.5-7B' 모델 폴더 경로를 지정합니다.
-    LOCAL_MODEL_PATH = "./qwen1.5-7b-chat"
+    LOCAL_MODEL_PATH = "../DevAgent/qwen1.5-7b-chat"
 
     parser = argparse.ArgumentParser(description="AST와 LLM을 이용한 파이썬 버그 분석기")
     # ‼️ 수정: 기본 경로에서 'Results/' 제거
@@ -282,7 +304,15 @@ def main():
     parser.add_argument("--save_every", type=int, default=25, help="N개의 버그를 분석할 때마다 중간 결과를 저장")
     parser.add_argument("--seed", type=int, default=42, help="재현성을 위한 랜덤 시드")
     parser.add_argument("--no_model", action="store_true", help="LLM 호출을 건너뛰고 AST 분석만 수행")
+    parser.add_argument("--ast_metrics_out", default="./Results/2.ast_parse_metrics.json", help="AST 파싱 메트릭 저장 경로(JSON)")
     args = parser.parse_args()
+
+    # 메트릭 초기화
+    AST_METRICS["attempts"] = 0
+    AST_METRICS["success"] = 0
+    AST_METRICS["fail"] = 0
+    AST_METRICS["exceptions"] = Counter()
+    AST_METRICS["samples"] = []
 
     # 출력 폴더가 없을 경우 생성
     output_dir = os.path.dirname(args.output_json)
@@ -334,6 +364,12 @@ def main():
         print(f"\n최종 결과 저장 완료: {args.output_json}")
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+        # --- 메트릭 저장 ---
+        _metrics = AST_METRICS.copy()
+        _metrics["exceptions"] = dict(AST_METRICS["exceptions"])  # Counter 직렬화
+        with open(args.ast_metrics_out, "w", encoding="utf-8") as mf:
+            json.dump(_metrics, mf, indent=2, ensure_ascii=False)
+        print(f"AST 파싱 메트릭 저장: {args.ast_metrics_out}")
 
 
 if __name__ == "__main__":

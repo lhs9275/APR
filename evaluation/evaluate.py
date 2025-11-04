@@ -196,7 +196,7 @@ def main():
         if not model_inference_dir: continue
         
         evaluate_dir_to_file_dict[model_inference_dir] = {}
-        path = os.path.join(MODEL_INFERENCE_BASE_PATH, model_inference_dir, "5.PatchesResults10.json")
+        path = os.path.join(MODEL_INFERENCE_BASE_PATH, model_inference_dir, "5.GeneratePromResult__wo_ast.json")
         
         if os.path.exists(path):
             logging.info(f"Successfully loaded inference file: {path}")
